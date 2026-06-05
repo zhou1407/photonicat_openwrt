@@ -446,9 +446,9 @@ mac80211_hostapd_setup_base() {
 
 	if [ "$enable_ax" != "0" ]; then
 		json_get_vars \
-			he_su_beamformer:0 \
-			he_su_beamformee:0 \
-			he_mu_beamformer:0 \
+			he_su_beamformer:1 \
+			he_su_beamformee:1 \
+			he_mu_beamformer:1 \
 			he_twt_required:0 \
 			he_spr_sr_control:3 \
 			he_spr_psr_enabled:0 \
@@ -471,7 +471,6 @@ mac80211_hostapd_setup_base() {
 			he_su_beamformer:${he_phy_cap:6:2}:0x80:$he_su_beamformer \
 			he_su_beamformee:${he_phy_cap:8:2}:0x1:$he_su_beamformee \
 			he_mu_beamformer:${he_phy_cap:8:2}:0x2:$he_mu_beamformer \
-			he_spr_psr_enabled:${he_phy_cap:14:2}:0x1:$he_spr_psr_enabled \
 			he_twt_required:${he_mac_cap:0:2}:0x6:$he_twt_required
 
 		if [ "$he_bss_color_enabled" -gt 0 ]; then
@@ -480,6 +479,7 @@ mac80211_hostapd_setup_base() {
 				append base_cfg "he_spr_non_srg_obss_pd_max_offset=$he_spr_non_srg_obss_pd_max_offset" "$N"
 				he_spr_sr_control=$((he_spr_sr_control | (1 << 2)))
 			}
+			[ "$he_spr_psr_enabled" -gt 0 ] && he_spr_psr_enabled=$((0x${he_phy_cap:14:2} & 0x1))
 			[ "$he_spr_psr_enabled" -gt 0 ] || he_spr_sr_control=$((he_spr_sr_control | (1 << 0)))
 			append base_cfg "he_spr_sr_control=$he_spr_sr_control" "$N"
 		else
@@ -563,6 +563,7 @@ mac80211_hostapd_setup_bss() {
 $hostapd_cfg
 bssid=$macaddr
 ${default_macaddr:+#default_macaddr}
+${random_macaddr:+#random_macaddr}
 ${dtim_period:+dtim_period=$dtim_period}
 ${max_listen_int:+max_listen_interval=$max_listen_int}
 EOF
@@ -691,12 +692,14 @@ mac80211_prepare_vif() {
 	json_add_string _ifname "$ifname"
 
 	default_macaddr=
+	random_macaddr=
 	if [ -z "$macaddr" ]; then
 		macaddr="$(mac80211_generate_mac $phy)"
 		macidx="$(($macidx + 1))"
 		default_macaddr=1
 	elif [ "$macaddr" = 'random' ]; then
 		macaddr="$(macaddr_random)"
+		random_macaddr=1
 	fi
 	json_add_string _macaddr "$macaddr"
 	json_add_string _default_macaddr "$default_macaddr"
@@ -740,8 +743,10 @@ mac80211_prepare_vif() {
 
 mac80211_prepare_iw_htmode() {
 	case "$htmode" in
-		VHT20|HT20|HE20) iw_htmode=HT20;;
-		HT40*|VHT40|VHT160|HE40)
+		HT20|VHT20|HE20|EHT20)
+			iw_htmode=HT20
+		;;
+		HT40*|VHT40|HE40|EHT40)
 			case "$band" in
 				2g)
 					case "$htmode" in
@@ -765,8 +770,11 @@ mac80211_prepare_iw_htmode() {
 			esac
 			[ "$auto_channel" -gt 0 ] && iw_htmode="HT40+"
 		;;
-		VHT80|HE80)
-			iw_htmode="80MHZ"
+		VHT80|HE80|EHT80)
+			iw_htmode="80MHz"
+		;;
+		VHT160|HE160|EHT160)
+			iw_htmode="160MHz"
 		;;
 		NONE|NOHT)
 			iw_htmode="NOHT"
@@ -1010,7 +1018,7 @@ mac80211_setup_supplicant() {
 	wpa_supplicant_prepare_interface "$ifname" nl80211 || return 1
 
 	if [ "$mode" = "sta" ]; then
-		wpa_supplicant_add_network "$ifname"
+		wpa_supplicant_add_network "$ifname" "" "$htmode"
 	else
 		wpa_supplicant_add_network "$ifname" "$freq" "$htmode" "$hostapd_noscan"
 	fi

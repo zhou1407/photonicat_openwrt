@@ -1,0 +1,82 @@
+#!/bin/sh
+
+case "$(board_name)" in
+rockchip,rk3568-photonicat)
+    ;;
+ariaboard,photonicat2)
+    NEED_INIT_PCIE_WLAN="1"
+    ;;
+esac
+
+if [ -f "/etc/pcat-wlan-pcie-first-setup-completed" ]; then
+    exit 0
+fi
+
+NEED_WLAN_COMMIT="0"
+
+if [ "${ACTION}" = "add" ]; then
+    if [ x"${NEED_INIT_PCIE_WLAN}" = x"1" ]; then
+        i="0"
+        while true; do
+            RADIO_IFACE_SECTION="$(uci show wireless.@wifi-iface[$i] | head -n1 | cut -f1 -d=)"
+            RADIO_DEV="$(uci -q get ${RADIO_IFACE_SECTION}.device)"
+            if [ x"${RADIO_DEV}" = x"" ]; then
+                break
+            fi
+
+            BUS="$(uci -q get wireless.${RADIO_DEV}.path)"
+
+            if [[ "${BUS}" == "*soc/22000000.pcie*" ]]; then
+                EMMC_SERIAL_RAW="$(cat /sys/bus/mmc/devices/mmc0:0001/serial 2>/dev/null | awk '{print tolower($0)}')"
+                EMMC_SERIAL="${EMMC_SERIAL_RAW:2:8}"
+                SSID_SUFFIX="${EMMC_SERIAL}"
+                RETRY_COUNT="0"
+
+                while [ ${RETRY_COUNT} -lt 30 ]; do
+                RETRY_COUNT=$(expr ${RETRY_COUNT} + 1)
+                    for _WLAN_PHY in /sys/class/ieee80211/*; do
+                        if [ x"${_WLAN_PHY}" = x"" ]; then
+                            continue
+                        fi
+
+                        WLAN_DEV="$(realpath ${_WLAN_PHY}/../..)"
+                        USB_PID="$(cat ${WLAN_DEV}/idProduct 2>/dev/null | awk '{print tolower($0)}')"
+                        USB_VID="$(cat ${WLAN_DEV}/idVendor 2>/dev/null | awk '{print tolower($0)}')"
+
+
+                        if [ x"${USB_VID}" = x"a69c" -a x"${USB_PID}" = x"8d81" ]; then
+                            WIFI_DEVICE="${WLAN_DEV:13}"
+                            MACADDR=$(cat "/sys/devices/${WIFI_DEVICE}/ieee80211/"*/macaddress | tail -n 1 | awk '{gsub(/:/,""); print tolower($0)}')
+                            SSID_SUFFIX="${MACADDR:4:8}"
+                            break
+                        fi
+                    done
+                    
+                    if [ x"${MACADDR}" != x"" ]; then
+                        break
+                    fi
+                done
+
+                uci set wireless.${RADIO_DEV}.band='5g'
+                uci set wireless.${RADIO_DEV}.channel='36'
+                uci set wireless.${RADIO_DEV}.country='US'
+                uci set wireless.${RADIO_DEV}.disabled='0'
+                uci set wireless.${RADIO_DEV}.htmode='HE80'
+                uci set ${RADIO_IFACE_SECTION}.ssid="photonicat2-${SSID_SUFFIX}-5g"
+                uci set ${RADIO_IFACE_SECTION}.encryption='psk2'
+                uci set ${RADIO_IFACE_SECTION}.key="photonicat"
+                uci commit wireless
+                
+                touch /etc/pcat-wlan-pcie-first-setup-completed
+                
+                NEED_WLAN_COMMIT="1"
+
+                wifi
+
+                break
+            fi
+
+            i="$(expr $i + 1)"
+        done
+    fi
+fi

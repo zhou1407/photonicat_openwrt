@@ -340,16 +340,11 @@
 	phy-handle = <&rgmii_phy0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&eth0m1_miim
-		     &eth0m1_tx_bus2
+		     &eth0m1_tx_bus2_weak
 		     &eth0m1_rx_bus2
-		     &eth0m1_rgmii_clk
-		     &eth0m1_rgmii_bus
-		     &ethm1_clk0_25m_out
-		     &gmac0_rst>;
-
-	snps,reset-gpio = <&gpio0 RK_PD2 GPIO_ACTIVE_LOW>;
-	snps,reset-active-low;
-	snps,reset-delays-us = <0 20000 100000>;
+		     &eth0m1_rgmii_clk_weak
+		     &eth0m1_rgmii_bus_weak
+		     &ethm1_clk0_25m_out>;
 
 	tx_delay = <0x20>;
 	/* rx_delay = <0x3f>; */
@@ -364,16 +359,11 @@
 	phy-handle = <&rgmii_phy1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&eth1m0_miim
-		     &eth1m0_tx_bus2
+		     &eth1m0_tx_bus2_weak
 		     &eth1m0_rx_bus2
-		     &eth1m0_rgmii_clk
-		     &eth1m0_rgmii_bus
-		     &ethm0_clk1_25m_out
-		     &gmac1_rst>;
-
-	snps,reset-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
-	snps,reset-active-low;
-	snps,reset-delays-us = <0 20000 100000>;
+		     &eth1m0_rgmii_clk_weak
+		     &eth1m0_rgmii_bus_weak
+		     &ethm0_clk1_25m_out>;
 
 	tx_delay = <0x20>;
 	/* rx_delay = <0x3f>; */
@@ -749,19 +739,31 @@
 
 &mdio0 {
 	rgmii_phy0: phy@1 {
-		compatible = "ethernet-phy-ieee802.3-c22";
+		compatible = "ethernet-phy-id001c.c916";
 		reg = <0x1>;
 		clocks = <&cru REFCLKO25M_GMAC0_OUT>;
+		assigned-clocks = <&cru REFCLKO25M_GMAC0_OUT>;
+		assigned-clock-rates = <25000000>;
 		realtek,led-data = <0x6d60>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gmac0_rst>;
+		reset-assert-us = <20000>;
+		reset-deassert-us = <100000>;
+		reset-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_LOW>;
 	};
 };
 
 &mdio1 {
 	rgmii_phy1: phy@1 {
-		compatible = "ethernet-phy-ieee802.3-c22";
+		compatible = "ethernet-phy-id001c.c916";
 		reg = <0x1>;
 		clocks = <&cru REFCLKO25M_GMAC1_OUT>;
 		realtek,led-data = <0x6d60>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gmac1_rst>;
+		reset-assert-us = <20000>;
+		reset-deassert-us = <100000>;
+		reset-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -794,9 +796,9 @@
 		spi1m2_1_pins: spi1m2-1-pins {
 			rockchip,pins =
 				/* spi1_clk_m2 */
-				<3 RK_PC7 10 &pcfg_pull_none>,
+				<3 RK_PC7 10 &pcfg_pull_none_drv_level_0>,
 				/* spi1_mosi_m2 */
-				<3 RK_PC6 10 &pcfg_pull_none>;
+				<3 RK_PC6 10 &pcfg_pull_none_drv_level_0>;
 		};
 	};
 	
@@ -828,6 +830,76 @@
 		rfkill_usb_wwan: rfkill-usb-wwan {
 			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_down>,
 					<0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	eth0 {
+		/omit-if-no-ref/	
+		eth0m1_tx_bus2_weak: eth0m1-tx_bus2 {
+			rockchip,pins =
+				/* eth0_txctl_m1 */
+				<2 RK_PA7 3 &pcfg_pull_none>,
+				/* eth0_txd0_m1 */
+				<2 RK_PB1 3 &pcfg_pull_none_drv_level_0>,
+				/* eth0_txd1_m1 */
+				<2 RK_PB0 3 &pcfg_pull_none_drv_level_0>;
+		};
+
+		/omit-if-no-ref/
+		eth0m1_rgmii_clk_weak: eth0m1-rgmii_clk {
+			rockchip,pins =
+				/* eth0_rxclk_m1 */
+				<2 RK_PB5 3 &pcfg_pull_none>,
+				/* eth0_txclk_m1 */
+				<2 RK_PB3 3 &pcfg_pull_none_drv_level_0>;
+		};
+
+		/omit-if-no-ref/
+		eth0m1_rgmii_bus_weak: eth0m1-rgmii_bus {
+			rockchip,pins =
+				/* eth0_rxd2_m1 */
+				<2 RK_PB7 3 &pcfg_pull_none>,
+				/* eth0_rxd3_m1 */
+				<2 RK_PB6 3 &pcfg_pull_none>,
+				/* eth0_txd2_m1 */
+				<2 RK_PB4 3 &pcfg_pull_none_drv_level_0>,
+				/* eth0_txd3_m1 */
+				<2 RK_PB2 3 &pcfg_pull_none_drv_level_0>;
+		};
+	};
+
+	eth1 {
+		/omit-if-no-ref/
+		eth1m0_tx_bus2_weak: eth1m0-tx_bus2 {
+			rockchip,pins =
+				/* eth1_txctl_m0 */
+				<2 RK_PD0 2 &pcfg_pull_none>,
+				/* eth1_txd0_m0 */
+				<2 RK_PC6 2 &pcfg_pull_none_drv_level_0>,
+				/* eth1_txd1_m0 */
+				<2 RK_PC7 2 &pcfg_pull_none_drv_level_0>;
+		};
+
+		/omit-if-no-ref/
+		eth1m0_rgmii_clk_weak: eth1m0-rgmii_clk {
+			rockchip,pins =
+				/* eth1_rxclk_m0 */
+				<2 RK_PC2 2 &pcfg_pull_none>,
+				/* eth1_txclk_m0 */
+				<2 RK_PC5 2 &pcfg_pull_none_drv_level_0>;
+		};
+
+		/omit-if-no-ref/
+		eth1m0_rgmii_bus_weak: eth1m0-rgmii_bus {
+			rockchip,pins =
+				/* eth1_rxd2_m0 */
+				<2 RK_PC0 2 &pcfg_pull_none>,
+				/* eth1_rxd3_m0 */
+				<2 RK_PC1 2 &pcfg_pull_none>,
+				/* eth1_txd2_m0 */
+				<2 RK_PC3 2 &pcfg_pull_none_drv_level_0>,
+				/* eth1_txd3_m0 */
+				<2 RK_PC4 2 &pcfg_pull_none_drv_level_0>;
 		};
 	};
 };

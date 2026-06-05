@@ -49,6 +49,3 @@ if [ "`find $targetdir/ '(' -name '*.rej' -o -name '.*.rej' ')' -print`" ] ; the
     echo "Aborting.  Reject files found."
     exit 1
 fi
-
-# Remove backup files
-find $targetdir/ '(' -name '*.orig' -o -name '.*.orig' ')' -exec rm -f {} \;
